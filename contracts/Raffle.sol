@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-contract Raffle {
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+contract Raffle is VRFConsumerBaseV2 {
+    error Raffle__NotEnoughETHEntered();
     // error code for not enough eth set
     //best practice contract_name + double underscore + error code name
-    error Raffle__NotEnoughETHEntered();
 
     //entrance fee for the lottery
     uint256 private immutable i_entranceFee; // should be private cause it involves in payment
@@ -18,7 +20,10 @@ contract Raffle {
     //every time the player wins we need to pay for them
     //prefix i to denote the immutable
     //immutable because it reduces the gas price
-    constructor(uint256 entranceFee) {
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
         i_entranceFee = entranceFee;
     }
 
@@ -36,8 +41,19 @@ contract Raffle {
         emit RaffleEnter(msg.sender);
     }
 
-    // function pickRandomWinner(){
-    // }
+    function requestRandomWinner() external {
+        //external is cheaper than public
+        //steps->1request the random number
+        //2.Once weget it do something with it
+        //3.
+    }
+
+    function fulfillRandomWords(
+        uint256 requestId,
+        uint256[] memory randomWords
+    ) internal override {}
+
+    /* view / pure functions */
     // to retreive the entrance fee
     function getEntranceFee() public view returns (uint256) {
         return i_entranceFee;
