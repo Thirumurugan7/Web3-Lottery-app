@@ -11,6 +11,10 @@ contract Raffle {
 
     address payable[] private s_players; // should be private cause it involves in payment
 
+    /* Events */
+
+    event RaffleEnter(address indexed player);
+
     //every time the player wins we need to pay for them
     //prefix i to denote the immutable
     //immutable because it reduces the gas price
@@ -27,6 +31,9 @@ contract Raffle {
         }
         //once the player enters the raffle we push them into the s_players array
         s_players.push(payable(msg.sender));
+        //events are used when we update a dynamic object like map or array
+
+        emit RaffleEnter(msg.sender);
     }
 
     // function pickRandomWinner(){
