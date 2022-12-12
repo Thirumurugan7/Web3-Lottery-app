@@ -3,10 +3,19 @@ pragma solidity ^0.8.7;
 
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+
 error Raffle__NotEnoughETHEntered();
 error Raffle__transferFail();
+error Raffle__NotOpened();
 
-contract Raffle is VRFConsumerBaseV2 {
+contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
+    /* Type declarations */
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    } // CREATING NEW TYPE
+
     // error code for not enough eth set
     //best practice contract_name + double underscore + error code name
 
@@ -30,6 +39,9 @@ contract Raffle is VRFConsumerBaseV2 {
     //lottery variables
 
     address private s_recentWinner;
+    RaffleState private s_raffleState;
+    uint256 private s_lastTimeStamp;
+    uint256 private immutable i_interval;
     /* Events */
 
     event RaffleEnter(address indexed player);
@@ -45,13 +57,19 @@ contract Raffle is VRFConsumerBaseV2 {
         uint256 entranceFee,
         bytes32 gasLane,
         uint64 subscriptionId,
-        uint32 callbackGasLimit
+        uint32 callbackGasLimit,
+        uint256 interval
     ) VRFConsumerBaseV2(vrfCoordinatorV2) {
         i_entranceFee = entranceFee;
         i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
         i_gasLane = gasLane;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN;
+        s_lastTimeStamp = block.timestamp; //to keep track og last time stamp
+        //timestamp is a already existing funcion in solidity
+
+        i_interval = interval; //the time we wait for lottery transaction
     }
 
     //to enter the raffle
@@ -61,6 +79,9 @@ contract Raffle is VRFConsumerBaseV2 {
         if (msg.value < i_entranceFee) {
             revert Raffle__NotEnoughETHEntered();
         }
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__NotOpened();
+        }
         //once the player enters the raffle we push them into the s_players array
         s_players.push(payable(msg.sender));
         //events are used when we update a dynamic object like map or array
@@ -68,11 +89,25 @@ contract Raffle is VRFConsumerBaseV2 {
         emit RaffleEnter(msg.sender);
     }
 
+    /**
+     * @dev This is the function that the chainlink keeper nodes call
+     * they lookl for the upkeepNeeded to return true
+     * the following should be true inorder to return true
+     * 1.our team interval shold be passed
+     * 2.the lottery should have at least 1 player, and have some ETH
+     * 3.Our subscriptions is funded with LINK
+     * 4.The lottery should be in an "OPEN" state
+     *  */
+
+    function checkUpkeep(bytes calldata /*checkData*/) external override {
+        bool isOpen = (RaffleState.OPEN == s_raffleState);
+    }
+
     function requestRandomWords() external {
         //external is cheaper than public
         //steps->1request the random number
         //2.Once weget it do something with it
-
+        s_raffleState = RaffleState.CALCULATING;
         uint256 requestID = i_vrfCoordinator.requestRandomWords(
             i_gasLane, //max gas price willing to pay for a  request in wei
             i_subscriptionId, // chain;inksubscription id
@@ -91,6 +126,8 @@ contract Raffle is VRFConsumerBaseV2 {
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0); // reseting players array
         (bool success, ) = recentWinner.call{value: address(this).balance}(""); //sending all the money from this contract to the winner
         if (!success) {
             revert Raffle__transferFail();
