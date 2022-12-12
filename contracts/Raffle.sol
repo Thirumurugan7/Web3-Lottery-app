@@ -64,7 +64,7 @@ contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
     //prefix i to denote the immutable
     //immutable because it reduces the gas price
     constructor(
-        address vrfCoordinatorV2,
+        address vrfCoordinatorV2, //contract address
         uint256 entranceFee,
         bytes32 gasLane,
         uint64 subscriptionId,
