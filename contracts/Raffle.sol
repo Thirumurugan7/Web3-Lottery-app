@@ -2,11 +2,11 @@
 pragma solidity ^0.8.7;
 
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/VRFCoordinatorV2Interface.sol";
- error Raffle__NotEnoughETHEntered();
- error Raffle__transferFail();
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+error Raffle__NotEnoughETHEntered();
+error Raffle__transferFail();
+
 contract Raffle is VRFConsumerBaseV2 {
-   
     // error code for not enough eth set
     //best practice contract_name + double underscore + error code name
 
@@ -23,19 +23,20 @@ contract Raffle is VRFConsumerBaseV2 {
 
     uint16 private constant REQUEST_CONFIRMATION = 3;
 
-uint16 private immutable i_callbackGasLimit;
+    uint32 private immutable i_callbackGasLimit;
 
-uint32 private constant NUM_WORDS = 1;
+    uint32 private constant NUM_WORDS = 1;
 
-//lottery variables
+    //lottery variables
 
-address private s_recentWinner;
+    address private s_recentWinner;
     /* Events */
 
     event RaffleEnter(address indexed player);
 
-event RequestedRaffleWinner(uint256 indexed requestId);
-event WinnerPicked(address indexed winner);
+    event RequestedRaffleWinner(uint256 indexed requestId);
+    event WinnerPicked(address indexed winner); //to keep track of previous winners
+
     //every time the player wins we need to pay for them
     //prefix i to denote the immutable
     //immutable because it reduces the gas price
@@ -44,12 +45,12 @@ event WinnerPicked(address indexed winner);
         uint256 entranceFee,
         bytes32 gasLane,
         uint64 subscriptionId,
-        uint32 callbackGasLimit,
+        uint32 callbackGasLimit
     ) VRFConsumerBaseV2(vrfCoordinatorV2) {
         i_entranceFee = entranceFee;
         i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
         i_gasLane = gasLane;
-        i_subscriptionId=subscriptionId;
+        i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
     }
 
@@ -72,31 +73,29 @@ event WinnerPicked(address indexed winner);
         //steps->1request the random number
         //2.Once weget it do something with it
 
-       uint256 requestID =  i_vrfCoordinator.requestRandomWords(
-            i_gasLane,//max gas price willing to pay for a  request in wei
+        uint256 requestID = i_vrfCoordinator.requestRandomWords(
+            i_gasLane, //max gas price willing to pay for a  request in wei
             i_subscriptionId, // chain;inksubscription id
             REQUEST_CONFIRMATION,
-            i_callbackGasLimit,//the limit of how much gas to use for the callback request to contract fulfillRandomWords
-            NUM_WORDS//how many random number we want
+            i_callbackGasLimit, //the limit of how much gas to use for the callback request to contract fulfillRandomWords
+            NUM_WORDS //how many random number we want
         );
 
         emit RequestedRaffleWinner(requestID);
-
     }
 
     function fulfillRandomWords(
-        uint256 requestId,
+        uint256 /*requestId*/,
         uint256[] memory randomWords
     ) internal override {
-uint256 indexOfWinner = randomWords[0] % s_players.length;
-address payable recentWinner = s_players[indexOfWinner];
-s_recentWinner = recentWinner;
-(bool success, ) = recentWinner.call{value:address(this).balance("");//sending all the money from this contract to the winner
-if(!success){
-    revert Raffle__transferFail();
-}
-
-}
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        (bool success, ) = recentWinner.call{value: address(this).balance}(""); //sending all the money from this contract to the winner
+        if (!success) {
+            revert Raffle__transferFail();
+        }
+        emit WinnerPicked(recentWinner);
     }
 
     /* view / pure functions */
@@ -111,4 +110,5 @@ if(!success){
 
     function getRecentWinner() public view returns (address) {
         return s_recentWinner;
+    }
 }
