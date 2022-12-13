@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\rsakt\\Documents\\blockchain-project\\raffle project\\contracts\\Raffle.sol": {
-      "lastModificationDate": 1670844201431,
-      "contentHash": "76b67008d6be7fb338113909227f5002",
+      "lastModificationDate": 1670844409433,
+      "contentHash": "d0d396bbfeec13654108aaa3ea746223",
       "sourceName": "contracts/Raffle.sol",
       "solcConfig": {
         "version": "0.8.8",
